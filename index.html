@@ -133,6 +133,7 @@ $("play").onclick=play;$("next").onclick=()=>go(i+1);$("prev").onclick=()=>go(i-
 speechSynthesis.onvoiceschanged=pickVoice;pickVoice();
 try{const s=+localStorage.getItem("hana-i");if(s>0&&s<S.length)i=s}catch(e){}
 show();
+if("serviceWorker"in navigator){navigator.serviceWorker.register("sw.js").then(()=>navigator.serviceWorker.ready).then(()=>{const n=document.querySelector(".note");n.textContent="✅ Saved for offline use. This guide will load even with no signal. Keep it as an open tab in Safari.";n.style.background="#163a2c";n.style.color="#bfeedd"}).catch(()=>{})}
 </script>
 </body>
 </html>
