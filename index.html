@@ -20,7 +20,7 @@ h1{font-size:24px;margin:0}
 button{font:inherit;border:0;border-radius:14px;padding:14px 10px;color:var(--ink);background:#24493f;flex:1;font-weight:600}
 button.play{background:var(--acc);color:#1b1405;flex:2}
 .opts{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px;color:var(--mute)}
-.opts select{background:#24493f;color:var(--ink);border:0;border-radius:8px;padding:4px}
+.sm{flex:none;padding:8px 12px;font-size:13px}.opts input{width:110px;vertical-align:middle}.opts select{background:#24493f;color:var(--ink);border:0;border-radius:8px;padding:4px}
 .list{padding:0 14px 40px}
 .stop{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:14px;margin-bottom:6px;background:#112822}
 .stop.on{outline:2px solid var(--acc)}
@@ -40,7 +40,7 @@ summary{font-weight:600}
 <div class="sub">A free, narrated drive from Pāʻia to Kīpahulu. Your passenger taps play as you pass each mile marker.</div>
 </header>
 
-<div class="note">Before you lose signal (before Pāʻia), load this page and keep the tab open. Narration uses your phone's built-in voice, so it keeps working without signal. Don't refresh the page once you're out of service.</div>
+<div class="note">Open this page while you still have signal. It saves itself (about 15 MB) so the narration, music and GPS work in dead zones.</div>
 
 <div class="player">
  <div class="now">
@@ -53,10 +53,7 @@ summary{font-weight:600}
    <button class="play" id="play">▶︎ Play</button>
    <button id="next">▶︎▶︎</button>
   </div>
-  <div class="opts">
-   <label>Speed <select id="rate"><option value="0.9">0.9×</option><option value="1" selected>1×</option><option value="1.1">1.1×</option></select></label>
-   <label>Voice <select id="voice"></select></label>
-  </div>
+  <div class="opts"><button id="mus" class="sm">🎵 Music: On</button><label>Music volume <input type="range" id="mvol" min="0" max="1" step="0.05" value="0.5"></label></div>
   <button id="gpsb" style="width:100%;margin-top:10px;background:#1f5a4c">📍 Turn on GPS auto-play</button>
   <div class="tip" id="gps"></div>
  </div>
@@ -108,32 +105,51 @@ function onPos(p){const{latitude:la,longitude:lo}=p.coords;
  for(let k=i+1;k<Math.min(C.length,i+4);k++){if(C[k]&&!fired.has(k)&&dist(la,lo,...C[k])<R){fired.add(k);go(k);play();break}}}
 function toggleGPS(){if(gpsOn){navigator.geolocation.clearWatch(watch);gpsOn=false;$("gpsb").textContent="📍 Turn on GPS auto-play";$("gps").textContent="";return}
  if(!navigator.geolocation){$("gps").textContent="GPS isn't available in this viewer. Tap play at each mile marker.";return}
- speechSynthesis.speak(new SpeechSynthesisUtterance(" "));lock();
+ ensureCtx();startMusic();lock();
  watch=navigator.geolocation.watchPosition(onPos,e=>{$("gps").textContent="GPS blocked here. Open the GPS link in Safari, or tap play at each mile marker.";gpsOn=false;$("gpsb").textContent="📍 Turn on GPS auto-play"},{enableHighAccuracy:true,maximumAge:5000});
  gpsOn=true;$("gpsb").textContent="📍 GPS auto-play: ON (tap to stop)";$("gps").textContent="Waiting for GPS…"}
-let i=0,speaking=false,voices=[],wl=null;
+let i=0,playing=false,wl=null,ctx=null,mGain,vGain,musicSrc=null,cur=null,musicOn=true,MV=0.5;
 const $=id=>document.getElementById(id);
+const AUD=k=>`audio/${String(k).padStart(2,"0")}.mp3`,MUSIC="audio/music.mp3",CACHE="hana-audio-v1";
+const duck=()=>MV*0.28;
+function ensureCtx(){if(!ctx){try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}
+ ctx=new(window.AudioContext||window.webkitAudioContext)();mGain=ctx.createGain();mGain.gain.value=0;mGain.connect(ctx.destination);vGain=ctx.createGain();vGain.gain.value=1;vGain.connect(ctx.destination)}
+ if(ctx.state!=="running")ctx.resume()}
+function ramp(g,v,t){const n=ctx.currentTime;g.gain.cancelScheduledValues(n);g.gain.setValueAtTime(g.gain.value,n);g.gain.linearRampToValueAtTime(v,n+t)}
+const bufs={};
+async function getBuf(u){if(bufs[u])return bufs[u];let r;try{r=await(await caches.open(CACHE)).match(u)}catch(e){}
+ if(!r)r=await fetch(u);if(!r.ok)throw new Error("fetch");const ab=await r.arrayBuffer();
+ return bufs[u]=await new Promise((ok,no)=>ctx.decodeAudioData(ab,ok,no))}
+async function startMusic(){if(!musicOn||musicSrc)return;try{const b=await getBuf(MUSIC);if(!musicOn||musicSrc)return;
+ const s=ctx.createBufferSource();s.buffer=b;s.loop=true;s.connect(mGain);s.start();musicSrc=s;ramp(mGain,playing?duck():MV,2.5)}catch(e){}}
+function toggleMusic(){ensureCtx();musicOn=!musicOn;$("mus").textContent="🎵 Music: "+(musicOn?"On":"Off");
+ if(musicOn)startMusic();else if(musicSrc){ramp(mGain,0,1);const s=musicSrc;musicSrc=null;setTimeout(()=>{try{s.stop()}catch(e){}},1100)}}
 function renderList(){$("list").innerHTML=S.map((s,k)=>`<div class="stop ${k===i?'on':''} ${k<i?'done':''}" data-k="${k}"><div class="n">${k+1}</div><div><div class="t">${s.t}</div><div class="m">${s.m}</div></div></div>`).join("");
 document.querySelectorAll(".stop").forEach(e=>e.onclick=()=>{go(+e.dataset.k);play()})}
 function show(){const s=S[i];$("mm").textContent=`Stop ${i+1} of ${S.length} · ${s.m}`;$("title").textContent=s.t;$("text").textContent=s.x;$("tip").textContent="💡 "+s.tip;renderList();try{localStorage.setItem("hana-i",i)}catch(e){}}
-function stop(){speechSynthesis.cancel();speaking=false;$("play").textContent="▶︎ Play"}
+function done(){playing=false;cur=null;$("play").textContent="▶︎ Play";if(ctx&&musicOn)ramp(mGain,MV,3)}
+function stop(){if(cur){cur.onended=null;try{cur.stop()}catch(e){}}speechSynthesis.cancel();if(playing)done()}
 function go(k){stop();i=Math.max(0,Math.min(S.length-1,k));show();document.querySelector(".stop.on")?.scrollIntoView({block:"center",behavior:"smooth"})}
-function pickVoice(){voices=speechSynthesis.getVoices().filter(v=>v.lang.startsWith("en"));
-const pref=["Premium","Ava (Enhanced)","Zoe (Enhanced)","Evan (Enhanced)","Samantha (Enhanced)","Enhanced","Siri","Google US English","Samantha","Daniel"];
-voices.sort((a,b)=>{const ia=pref.findIndex(p=>a.name.includes(p)),ib=pref.findIndex(p=>b.name.includes(p));return(ia<0?99:ia)-(ib<0?99:ib)});
-$("voice").innerHTML=voices.map((v,k)=>`<option value="${k}">${v.name.slice(0,24)}</option>`).join("")}
 async function lock(){try{if("wakeLock"in navigator&&!wl)wl=await navigator.wakeLock.request("screen")}catch(e){}}
-function play(){lock();if(speaking){stop();return}
-const u=new SpeechSynthesisUtterance(S[i].t+". "+S[i].x);
-const v=voices[+$("voice").value];if(v)u.voice=v;u.rate=+$("rate").value;
-u.onend=()=>{speaking=false;$("play").textContent="▶︎ Play"};
-speechSynthesis.cancel();speechSynthesis.speak(u);speaking=true;$("play").textContent="⏸ Stop"}
-$("gpsb").onclick=toggleGPS;document.addEventListener("visibilitychange",()=>{if(!document.hidden){wl=null;lock()}});
+function ttsFallback(){const u=new SpeechSynthesisUtterance(S[i].t+". "+S[i].x);const v=speechSynthesis.getVoices().find(v=>/Premium|Enhanced/.test(v.name)&&v.lang.startsWith("en"));if(v)u.voice=v;u.onend=done;speechSynthesis.speak(u)}
+async function play(){ensureCtx();lock();startMusic();if(playing){stop();return}
+ const k=i;playing=true;$("play").textContent="⏸ Stop";if(musicOn)ramp(mGain,duck(),1);
+ try{const b=await getBuf(AUD(k));if(!playing||k!==i)return;const s=ctx.createBufferSource();s.buffer=b;s.connect(vGain);
+  s.onended=()=>{if(cur===s)done()};cur=s;s.start(ctx.currentTime+0.7)}catch(e){if(playing&&k===i)ttsFallback()}}
+async function saveOffline(){const n=document.querySelector(".note");if(!("caches"in window))return;
+ const urls=[MUSIC,...S.map((_,k)=>AUD(k))];let c;try{c=await caches.open(CACHE)}catch(e){return}
+ let ok=0;for(const [j,u] of urls.entries()){n.textContent=`⏳ Saving audio for offline use… ${j+1}/${urls.length} (keep this page open)`;
+  try{if(!(await c.match(u)))await c.add(u);ok++}catch(e){}}
+ if(ok===urls.length){n.textContent="✅ Saved for offline use. Voice, music and the page all work with no signal. Keep this tab open in Safari.";n.style.background="#163a2c";n.style.color="#bfeedd"}
+ else n.textContent=`⚠️ Only ${ok}/${urls.length} audio files saved. Reload this page while you have signal.`}
+$("gpsb").onclick=toggleGPS;$("mus").onclick=toggleMusic;
+$("mvol").oninput=e=>{MV=+e.target.value;if(ctx&&musicOn)ramp(mGain,playing?duck():MV,0.2)};
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){wl=null;lock();if(ctx)ctx.resume()}});
 $("play").onclick=play;$("next").onclick=()=>go(i+1);$("prev").onclick=()=>go(i-1);
-speechSynthesis.onvoiceschanged=pickVoice;pickVoice();
 try{const s=+localStorage.getItem("hana-i");if(s>0&&s<S.length)i=s}catch(e){}
 show();
-if("serviceWorker"in navigator){navigator.serviceWorker.register("sw.js").then(()=>navigator.serviceWorker.ready).then(()=>{const n=document.querySelector(".note");n.textContent="✅ Saved for offline use. This guide will load even with no signal. Keep it as an open tab in Safari.";n.style.background="#163a2c";n.style.color="#bfeedd"}).catch(()=>{})}
+if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").then(()=>navigator.serviceWorker.ready).then(saveOffline).catch(saveOffline);else saveOffline();
 </script>
+
 </body>
 </html>
