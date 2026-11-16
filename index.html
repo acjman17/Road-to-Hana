@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Road to Hana Audio Guide</title>
+<style>
+:root{--bg:#0d1f1a;--card:#14302a;--ink:#f3efe4;--mute:#a9bcb3;--acc:#f2b84b;--acc2:#5fc4a8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 -apple-system,system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{padding:20px 18px 8px}
+h1{font-size:24px;margin:0}
+.sub{color:var(--mute);font-size:14px;margin-top:4px}
+.player{position:sticky;top:0;z-index:5;background:linear-gradient(#0d1f1a 85%,transparent);padding:10px 14px 16px}
+.now{background:var(--card);border-radius:18px;padding:16px;border:1px solid #24493f}
+.mm{color:var(--acc);font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.now h2{margin:4px 0 6px;font-size:21px}
+.tip{font-size:14px;color:var(--acc2);margin-top:6px}
+.ctrls{display:flex;gap:8px;margin-top:14px}
+button{font:inherit;border:0;border-radius:14px;padding:14px 10px;color:var(--ink);background:#24493f;flex:1;font-weight:600}
+button.play{background:var(--acc);color:#1b1405;flex:2}
+.opts{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px;color:var(--mute)}
+.opts select{background:#24493f;color:var(--ink);border:0;border-radius:8px;padding:4px}
+.list{padding:0 14px 40px}
+.stop{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:14px;margin-bottom:6px;background:#112822}
+.stop.on{outline:2px solid var(--acc)}
+.stop.done{opacity:.55}
+.n{min-width:30px;height:30px;border-radius:50%;background:#24493f;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+.stop .t{font-weight:600}
+.stop .m{font-size:13px;color:var(--mute)}
+.note{margin:6px 14px 18px;padding:12px 14px;border-radius:14px;background:#2a2312;color:#f0dcae;font-size:14px}
+details{margin:0 14px 10px;background:#112822;border-radius:14px;padding:12px 14px}
+summary{font-weight:600}
+#text{font-size:15px;color:#d9e3dd;max-height:30vh;overflow:auto;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+<h1>🌺 Road to Hana</h1>
+<div class="sub">A free, narrated drive from Pāʻia to Kīpahulu. Your passenger taps play as you pass each mile marker.</div>
+</header>
+
+<div class="note">Before you lose signal (before Pāʻia), load this page and keep the tab open. Narration uses your phone's built-in voice, so it keeps working without signal. Don't refresh the page once you're out of service.</div>
+
+<div class="player">
+ <div class="now">
+  <div class="mm" id="mm"></div>
+  <h2 id="title"></h2>
+  <div id="text"></div>
+  <div class="tip" id="tip"></div>
+  <div class="ctrls">
+   <button id="prev">◀︎</button>
+   <button class="play" id="play">▶︎ Play</button>
+   <button id="next">▶︎▶︎</button>
+  </div>
+  <div class="opts">
+   <label>Speed <select id="rate"><option value="0.9">0.9×</option><option value="1" selected>1×</option><option value="1.1">1.1×</option></select></label>
+   <label>Voice <select id="voice"></select></label>
+  </div>
+  <button id="gpsb" style="width:100%;margin-top:10px;background:#1f5a4c">📍 Turn on GPS auto-play</button>
+  <div class="tip" id="gps"></div>
+ </div>
+</div>
+
+<div class="list" id="list"></div>
+
+<details><summary>Driving etiquette (read before you go)</summary>
+<p>Most of the 59 bridges are one lane. The rule is to yield as a group: if 5 or 6 cars are already crossing from the other side, wait for them all, then go. Wave thanks.</p>
+<p>If a local is behind you, pull over at the next safe spot and let them by. People live and work on this road.</p>
+<p>Only park in marked spots, never on a bridge or a blind curve. "Kapu" and "Keep Out" signs mean private land. Respect them.</p>
+<p>Fill up on gas in Pāʻia. There is very little fuel until Hāna, and it's expensive there.</p>
+</details>
+
+<script>
+const S=[
+{t:"Welcome to the Road to Hāna",m:"Start · Kahului / Pāʻia",tip:"Gas up and grab snacks in Pāʻia.",x:`Aloha, and welcome to the Road to Hāna. Over the next fifty-some miles you'll drive the Hāna Highway, which hugs the windward, northeast flank of Haleakalā. Over its whole length there are around six hundred curves and fifty-nine bridges, and most of the bridges are one lane. Until the road opened in 1926, Hāna was mostly reached by boat or by rough horse trail. The road wasn't fully paved until 1962. Today the whole route is listed on the National Register of Historic Places. Here's the most important rule: the drive is the destination. Don't try to see every stop. Pick a handful, take your time, and pull over to let locals pass. When you come up to a new mile marker, tap play.`},
+{t:"Pāʻia Town",m:"Hwy 36 · around MM 7",tip:"Last real gas station and grocery for a long stretch.",x:`You're rolling through Pāʻia, an old sugar plantation town. In the early 1900s this was one of Maui's busiest towns, with a sugar mill, camps for workers from Japan, the Philippines, Portugal and China, and a railroad hauling cane. Once sugar faded, surfers and hippies moved in during the sixties and seventies, and the colorful wooden storefronts you see now are the result. Maui's last sugar mill, at nearby Puʻunēnē, closed in 2016, which ended about 140 years of commercial sugar on the island. If you still need gas or snacks, this is the place to get them.`},
+{t:"Hoʻokipa Beach Park",m:"Hwy 36 · MM 9",tip:"Turtles are protected. Stay at least 10 feet back.",x:`On your left is Hoʻokipa, which is considered one of the best windsurfing spots in the world. The trade winds and the big north-shore swells make it a proving ground for pro windsurfers and big-wave surfers, especially in winter. Hoʻokipa means "hospitality." In the afternoon, Hawaiian green sea turtles, called honu, often haul out to rest on the sand at the east end of the beach. They're a protected species, and in Hawaiian culture they're often seen as an ʻaumakua, a family guardian spirit. The lookout above the beach is the best spot to watch.`},
+{t:"Highway 360 Begins",m:"Hwy 360 · MM 0",tip:"Mile markers reset to zero here. From now on, watch for the small green markers.",x:`The mile markers just reset to zero. This is where the real Hāna Highway, Route 360, starts. From here the road narrows and dives into the rainforest. This side of Haleakalā faces the trade winds, which push moist ocean air up the mountain. Some of the ridges above you get more than three hundred inches of rain a year. That rain carved the deep gulches you're about to cross, one waterfall after another. Many of the concrete bridges ahead date to the 1910s and 1920s, and several still have their original railings. Settle in. You'll average about twenty-five miles an hour from here on.`},
+{t:"Twin Falls",m:"MM 2",tip:"Private farm with a parking fee. There's a fruit stand at the entrance.",x:`Twin Falls is one of the first, and easiest, waterfall stops. It sits on private farmland with an easy walk to a few small falls and swimming holes. Because it comes so early, it gets crowded. If the lot is full, skip it, because there are better waterfalls ahead. The farm stand is a good place for fresh coconut, smoothies and banana bread. One safety note for the whole drive: flash floods happen fast here. If it's raining up the mountain or the water turns brown, get out of the stream right away.`},
+{t:"Huelo Lookout & Kailua",m:"MM 4 – 6",tip:"Huelo Lookout fruit stand has açaí bowls and a big ocean view.",x:`Over the next few miles you'll pass the turnoff to Huelo, a tiny community on the ocean bluffs, and then the little village of Kailua. Kailua was built to house workers for the East Maui Irrigation system. Starting in the 1870s, sugar companies dug a huge network of ditches and tunnels through these mountains to carry rainwater across to the dry plantations of central Maui. You'll see bits of it as you drive: concrete flumes, ditch openings and little dams. Who gets this water has been one of Maui's longest-running fights, between farmers, developers, and Native Hawaiian taro growers who rely on streams flowing freely.`},
+{t:"Waikamoi Ridge Trail",m:"MM 9.5",tip:"Short loop trail with a picnic area. Good leg-stretch.",x:`This is the Waikamoi Ridge Trail, a short loop through a forest of bamboo, eucalyptus and towering trees covered in vines. Much of what you see along this stretch isn't native. Bamboo, African tulip trees, and the rainbow eucalyptus with its striped bark were all brought in during the last century or so. The native forest, with ʻōhiʻa trees and hāpuʻu tree ferns, survives mostly higher up the mountain. If you hike in, the sound of the bamboo knocking together in the wind is worth the stop.`},
+{t:"Garden of Eden Arboretum",m:"MM 10.5",tip:"Paid entry. Worth it if you want a curated garden and an easy waterfall view.",x:`The Garden of Eden is a private botanical garden with hundreds of plant species, peacocks, and a classic view of Puohokamoa Falls. From one of its lookouts you can see Keopuka Rock. That's the island shown in the opening helicopter scene of Jurassic Park. It costs money to get in, but it's an easy, well-kept way to see a lot of tropical flora in one place. Just past the garden, around mile eleven, you can glimpse Puohokamoa Falls from the road. Parking there is tight.`},
+{t:"Kaumahina State Wayside",m:"MM 12",tip:"Clean restrooms, and the first big view down the coast to Keʻanae.",x:`Kaumahina State Wayside is a good bathroom stop, and it has one of the first sweeping views of the coast. Look east and you'll see the flat Keʻanae Peninsula sticking out into the ocean. Kaumahina means "moonrise." The rainbow eucalyptus trees here are some of the best on the drive. Their bark peels in strips and shows green, orange, purple and red underneath. Kaumahina is also a reasonable place to turn around if you're short on time.`},
+{t:"Honomanū Bay",m:"MM 14",tip:"The rocky beach is at the bottom of a steep dirt road. Surf can be dangerous.",x:`Below you is Honomanū Bay, a deep, steep valley that opens onto a black boulder beach. Honomanū means "bird bay." Local families come here to surf and fish, and you'll sometimes see people throwing net in the stream mouth. Since the Hāna Highway was built, valleys like this have stayed largely undeveloped, so you're looking at roughly what this coast looked like a century ago. The water here is usually rough. Enjoy the view, but only swim if it's calm and locals are in the water.`},
+{t:"Keʻanae Arboretum",m:"MM 16.5",tip:"Free, flat, paved walk. Has native plants and taro.",x:`The Keʻanae Arboretum is a free, easy walk along the Piʻinaʻau Stream. It has sections of native Hawaiian plants and of the "canoe plants," the crops the first Polynesian voyagers carried here on their canoes. Those included kalo (taro), ʻulu (breadfruit), kō (sugarcane) and maiʻa (banana). At the back of the garden, there are terraced loʻi, the flooded taro patches. In Hawaiian tradition, Hāloa, the first kalo plant, was the older sibling of the first Hawaiian person. Taking care of taro is taking care of family.`},
+{t:"Keʻanae Peninsula",m:"MM 16.6 · turn left",tip:"Aunty Sandy's banana bread. Watch the waves crash on the black lava.",x:`Turn left down to the Keʻanae Peninsula. This is one of the most traditional Hawaiian communities left on Maui. According to local tradition, the peninsula was once bare lava, and villagers hauled soil down from the valley by hand to build the taro fields you see now. In 1946 a tsunami triggered by an earthquake in Alaska swept over the peninsula and wiped out the schoolhouse. The stone church, Lanakila ʻIhiʻihi o Iehova o Na Kaua, built in 1860, survived. Respect the private property. People live here. And yes, stop for banana bread at Aunty Sandy's.`},
+{t:"Halfway to Hāna",m:"MM 17.3",tip:"A roadside stand, famous for banana bread.",x:`You've made it to the Halfway to Hāna stand. As the name says, you're roughly halfway in time, but the road gets twistier from here. Banana bread is basically the official snack of this drive. Bananas came to Hawaiʻi with the first voyagers, and many of the varieties grown along this road are old Polynesian types you won't find in stores. This is a good spot to check the time. If you want to make it to Kīpahulu and Pipiwai, you should keep moving.`},
+{t:"Wailua & the Coral Miracle Church",m:"MM 18 · Wailua Rd",tip:"A tiny detour into a quiet village. Drive slowly. People live here.",x:`Down in Wailua village is St. Gabriel's Church, often called the Coral Miracle Church. According to local tradition, villagers in the 1860s needed coral to make lime for their church. They couldn't reach it, because it was too deep. Then a storm washed a huge pile of coral onto the beach, just enough to build the church. Once it was finished, another storm took the rest of the coral back out to sea. Next to it is the small Our Lady of Fatima shrine. Drive slowly and keep it quiet. This is a residential village.`},
+{t:"Wailua Valley State Wayside",m:"MM 18.8",tip:"A short stairway up to one of the best views on the drive.",x:`Climb the short stairway on the right for a view over the Wailua Valley's taro fields and the coastline, and back up into the Koʻolau Gap. Long ago, lava from Haleakalā's summit crater flowed down through that gap and out to the ocean, and that flow built the flat land where Keʻanae and Wailua sit. On a clear day you can see waterfalls threading down the cliffs. This is one of the most underrated stops on the drive.`},
+{t:"Upper Waikani Falls · Three Bears",m:"MM 19.5",tip:"Do NOT stop on the bridge. Park just past it, only if there's room.",x:`Coming up is Upper Waikani Falls, nicknamed the Three Bears because after a good rain it splits into three streams: a big one, a medium one and a small one. This is one of the most photographed falls on the road, and one of the most dangerous places to stop. Parking is extremely limited, and there's no shoulder. If a spot isn't available, just enjoy it from the car as you roll past slowly, and keep the bridge clear.`},
+{t:"Puaʻa Kaʻa State Wayside",m:"MM 22.5",tip:"Restrooms, small falls and pools right next to the road.",x:`Puaʻa Kaʻa means "rolling pig." It's a small state park with restrooms, picnic tables, and a couple of little waterfalls and pools just a short walk from the road. It's an easy, low-key place to stretch your legs. From here the road gets a bit gentler as you come into the Nāhiku area. The land opens up, and you'll start to see more homes, flower farms and fruit stands.`},
+{t:"Nāhiku",m:"MM 25 – 29",tip:"Nāhiku Marketplace (MM 28.8) has food trucks: coffee, Thai, fish tacos.",x:`Nāhiku means "the seven." That probably refers to seven districts or seven chiefs of the area. In the early 1900s, Nāhiku was the site of the first rubber plantation in the United States. Investors planted thousands of Pará rubber trees here, but the business failed within about a decade. A few rubber trees still grow wild in the forest. Today Nāhiku Marketplace, at mile 28.8, is the main food stop before Hāna. It's a good place for lunch.`},
+{t:"Hāna Lava Tube & Kahanu Garden",m:"MM 31 · Ulaʻino Rd",tip:"Both charge admission. Check hours, because the garden is closed some days.",x:`Turn left on Ulaʻino Road for two very different stops. The Hāna Lava Tube, Kaʻeleku Cave, is one of the largest lava tubes in Hawaiʻi. You walk through it with a flashlight, and it was carved by hot flowing lava. Farther down the road is Kahanu Garden, home of Piʻilanihale Heiau. It's the largest ancient temple platform in Polynesia, with stone walls about fifty feet high covering nearly three acres. It was linked to Piʻilani, the ruling chief who united Maui in the 1500s and, according to tradition, built a road of stone around the island, the original route Hāna drivers still follow.`},
+{t:"Waiʻānapanapa State Park",m:"MM 32",tip:"Reservations are required in advance. You'll be turned away without one.",x:`Waiʻānapanapa means "glistening fresh water." It's famous for its black sand beach, sea arches and lava tubes. Look for the freshwater caves near the parking area. According to legend, a chiefess named Pōpōʻalaea hid there from her jealous husband, Kakae. He found her when he saw the reflection of her attendant's feather fan in the water, and he killed her in the cave. On certain nights each spring, the water is said to turn red with her blood. Scientists say the red comes from tiny shrimp. Don't climb the lava near the edge. Waves here have swept people off the rocks.`},
+{t:"Hāna Town",m:"MM 34",tip:"Hasegawa General Store, Hāna Bay, and a short walk up to Fagan's Cross.",x:`Welcome to Hāna. After all that, you'll probably notice there's not much here. That's the point. Hāna is a quiet, mostly Hawaiian town of a thousand or so people. The cinder cone at the edge of Hāna Bay is Kaʻuiki Head, where Queen Kaʻahumanu was born in 1768. She became the favorite wife of Kamehameha the Great and one of the most powerful leaders in Hawaiian history. In the 1940s, businessman Paul Fagan started Hāna Ranch and the hotel. After he died, his family put up the large cross on the hill to honor him. The Hasegawa General Store has been run by the same family since 1910.`},
+{t:"Hāmoa Beach",m:"Hwy 31 · Haneoʻo Rd loop",tip:"Mile markers now count down on Hwy 31. Watch for the Haneoʻo Rd turnoff.",x:`Just past Hāna, the highway changes number to Route 31, and the mile markers start counting down. Take the Haneoʻo Road loop to Hāmoa Beach, a crescent of salt-and-pepper sand framed by cliffs and lined with hala trees. Author James Michener is often quoted as saying it looks more like the South Pacific than anywhere else in Hawaiʻi. On the same loop you can see Kōkī Beach and Alau Island, a small islet that's home to seabirds. In winter the current at Hāmoa can be strong, so check the conditions before you swim.`},
+{t:"Wailua Falls",m:"Hwy 31 · MM 45",tip:"Visible right from the road. Parking fills up fast.",x:`Wailua Falls is one of the easiest big waterfalls in Hawaiʻi to see: about eighty feet of water dropping straight into a pool right next to the road. It's a classic photo stop. Expect vendors and people crowded on the bridge, so be careful when you get out. If you want to swim, the path down is short but slippery. Be careful on the rocks.`},
+{t:"Kīpahulu · Haleakalā National Park",m:"Hwy 31 · MM 42",tip:"National Park fee applies (an America the Beautiful pass works). Pipiwai Trail is about 4 miles round trip.",x:`This is the Kīpahulu District of Haleakalā National Park. It's the coastal side of the same volcano whose summit is ten thousand feet above you. Kīpahulu was a thriving Hawaiian community for centuries, and the park works with its families to restore the old taro fields and fishponds. Here you'll find the ʻOheʻo Gulch pools. Swimming there is often closed for safety, so follow the signs. You'll also find the Pipiwai Trail. It climbs past a giant banyan tree and a four-hundred-foot cascade, Makahiku Falls, then winds through a towering bamboo forest that creaks in the wind, ending at Waimoku Falls, which is about four hundred feet high. Give yourself two to three hours for the hike.`},
+{t:"Lindbergh's Grave & Heading Home",m:"Hwy 31 · MM 41",tip:"Most rental contracts don't allow the road past here. Turn around and go back the way you came.",x:`About a mile past the park is the Palapala Hoʻomau Church. In its quiet graveyard, aviator Charles Lindbergh is buried. He made the first solo nonstop flight across the Atlantic in 1927. Late in life he fell in love with Kīpahulu, and he chose to be buried here, overlooking the ocean, in 1974. Past this point the road turns rough and runs around the dry back side of Haleakalā. Most rental car contracts don't allow it, and it can be rough or closed. The safe, standard choice is to turn around and drive back the way you came. Mahalo for taking this drive with me. Take it slow on the way home, and let the locals pass. A hui hou, until we meet again.`}
+];
+// approx coordinates [lat,lon] per stop (null = no auto-trigger)
+const C=[null,[20.9106,-156.3803],[20.9338,-156.3578],[20.918,-156.270],[20.9118,-156.2427],[20.9040,-156.2240],[20.8838,-156.1800],[20.8760,-156.1744],[20.8787,-156.1553],[20.8634,-156.1588],[20.8573,-156.1363],[20.8640,-156.1460],[20.8556,-156.1290],[20.8485,-156.1330],[20.8456,-156.1311],[20.8385,-156.1095],[20.8183,-156.0887],[20.7983,-156.0445],[20.7953,-156.0153],[20.7877,-156.0026],[20.7575,-155.9897],[20.7215,-155.9876],[20.6810,-156.0350],[20.6617,-156.0446],[20.6522,-156.0582]];
+const R=600;let gpsOn=false,watch=null,fired=new Set();
+function dist(a,b,c,d){const r=x=>x*Math.PI/180,R=6371e3,p=r(c-a),q=r(d-b);const h=Math.sin(p/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(q/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+function onPos(p){const{latitude:la,longitude:lo}=p.coords;
+ const nx=C.findIndex((c,k)=>k>i&&c);if(nx>0){const d=dist(la,lo,...C[nx]);$("gps").textContent=`📍 GPS on · ${(d/1609).toFixed(1)} mi to ${S[nx].t}`}
+ for(let k=i+1;k<Math.min(C.length,i+4);k++){if(C[k]&&!fired.has(k)&&dist(la,lo,...C[k])<R){fired.add(k);go(k);play();break}}}
+function toggleGPS(){if(gpsOn){navigator.geolocation.clearWatch(watch);gpsOn=false;$("gpsb").textContent="📍 Turn on GPS auto-play";$("gps").textContent="";return}
+ if(!navigator.geolocation){$("gps").textContent="GPS isn't available in this viewer. Tap play at each mile marker.";return}
+ speechSynthesis.speak(new SpeechSynthesisUtterance(" "));lock();
+ watch=navigator.geolocation.watchPosition(onPos,e=>{$("gps").textContent="GPS blocked here. Open the GPS link in Safari, or tap play at each mile marker.";gpsOn=false;$("gpsb").textContent="📍 Turn on GPS auto-play"},{enableHighAccuracy:true,maximumAge:5000});
+ gpsOn=true;$("gpsb").textContent="📍 GPS auto-play: ON (tap to stop)";$("gps").textContent="Waiting for GPS…"}
+let i=0,speaking=false,voices=[],wl=null;
+const $=id=>document.getElementById(id);
+function renderList(){$("list").innerHTML=S.map((s,k)=>`<div class="stop ${k===i?'on':''} ${k<i?'done':''}" data-k="${k}"><div class="n">${k+1}</div><div><div class="t">${s.t}</div><div class="m">${s.m}</div></div></div>`).join("");
+document.querySelectorAll(".stop").forEach(e=>e.onclick=()=>{go(+e.dataset.k);play()})}
+function show(){const s=S[i];$("mm").textContent=`Stop ${i+1} of ${S.length} · ${s.m}`;$("title").textContent=s.t;$("text").textContent=s.x;$("tip").textContent="💡 "+s.tip;renderList();try{localStorage.setItem("hana-i",i)}catch(e){}}
+function stop(){speechSynthesis.cancel();speaking=false;$("play").textContent="▶︎ Play"}
+function go(k){stop();i=Math.max(0,Math.min(S.length-1,k));show();document.querySelector(".stop.on")?.scrollIntoView({block:"center",behavior:"smooth"})}
+function pickVoice(){voices=speechSynthesis.getVoices().filter(v=>v.lang.startsWith("en"));
+const pref=["Premium","Ava (Enhanced)","Zoe (Enhanced)","Evan (Enhanced)","Samantha (Enhanced)","Enhanced","Siri","Google US English","Samantha","Daniel"];
+voices.sort((a,b)=>{const ia=pref.findIndex(p=>a.name.includes(p)),ib=pref.findIndex(p=>b.name.includes(p));return(ia<0?99:ia)-(ib<0?99:ib)});
+$("voice").innerHTML=voices.map((v,k)=>`<option value="${k}">${v.name.slice(0,24)}</option>`).join("")}
+async function lock(){try{if("wakeLock"in navigator&&!wl)wl=await navigator.wakeLock.request("screen")}catch(e){}}
+function play(){lock();if(speaking){stop();return}
+const u=new SpeechSynthesisUtterance(S[i].t+". "+S[i].x);
+const v=voices[+$("voice").value];if(v)u.voice=v;u.rate=+$("rate").value;
+u.onend=()=>{speaking=false;$("play").textContent="▶︎ Play"};
+speechSynthesis.cancel();speechSynthesis.speak(u);speaking=true;$("play").textContent="⏸ Stop"}
+$("gpsb").onclick=toggleGPS;document.addEventListener("visibilitychange",()=>{if(!document.hidden){wl=null;lock()}});
+$("play").onclick=play;$("next").onclick=()=>go(i+1);$("prev").onclick=()=>go(i-1);
+speechSynthesis.onvoiceschanged=pickVoice;pickVoice();
+try{const s=+localStorage.getItem("hana-i");if(s>0&&s<S.length)i=s}catch(e){}
+show();
+</script>
+</body>
+</html>
