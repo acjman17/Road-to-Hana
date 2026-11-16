@@ -60,6 +60,10 @@ summary{font-weight:600}
  </div>
 </div>
 
+<div id="resume" style="display:none;position:fixed;inset:0;z-index:20;background:rgba(5,15,12,.92);display:none;align-items:center;justify-content:center;padding:30px;text-align:center">
+ <div><div style="font-size:44px">🌺</div><h2 style="margin:8px 0">Resume your drive</h2><p style="color:#a9bcb3">The page reloaded. Tap below to turn GPS and sound back on. You won't hear any stops twice.</p>
+ <button id="resumeb" class="play" style="width:100%;padding:18px;font-size:18px">▶︎ Resume GPS guide</button></div></div>
+<div id="unlock" style="display:none;position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:15;background:#f2b84b;color:#1b1405;border-radius:16px;padding:16px;font-weight:700;text-align:center">🔇 Sound was paused by your phone. Tap here to turn it back on.</div>
 <div class="list" id="list"></div>
 
 <details><summary>Driving etiquette (read before you go)</summary>
@@ -106,10 +110,11 @@ const TURNTXT="Quick timing check. It's after two o'clock. The drive back to Pā
 const $=id=>document.getElementById(id);
 const pad=n=>String(n).padStart(2,"0");
 const URL_STOP=k=>`audio/${pad(k)}.mp3`,URL_HEAD=k=>`audio/h${pad(k)}.mp3`,URL_HOME=j=>`audio/r${pad(j)}.mp3`,URL_TURN="audio/turn.mp3",CACHE="hana-audio-v2";
-let mode="to",i=0,hi=0,playing=false,cur=null,queue=[],ctx=null,vGain,wl=null,gpsOn=false,watch=null,turnDone=false;
+let pendingResume=false,mode="to",i=0,hi=0,playing=false,cur=null,queue=[],ctx=null,vGain,wl=null,gpsOn=false,watch=null,turnDone=false;
 const fired=new Set(),headsFired=new Set(),homeFired=new Set();
 function dist(a,b,c,d){const r=x=>x*Math.PI/180,R=6371e3,p=r(c-a),q=r(d-b);const h=Math.sin(p/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(q/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
-function save(){try{localStorage.setItem("hana-state",JSON.stringify({mode,i,hi,turnDone}))}catch(e){}}
+function save(){try{localStorage.setItem("hana-state",JSON.stringify({mode,i,hi,turnDone,gpsOn:gpsOn||pendingResume,fired:[...fired],headsFired:[...headsFired],homeFired:[...homeFired]}))}catch(e){}}
+function soundOK(){return ctx&&ctx.state==="running"}
 function ensureCtx(){if(!ctx){try{if(navigator.audioSession)navigator.audioSession.type="playback"}catch(e){}
  ctx=new(window.AudioContext||window.webkitAudioContext)();vGain=ctx.createGain();vGain.connect(ctx.destination);
  try{const b=ctx.createBuffer(1,1,22050),s=ctx.createBufferSource();s.buffer=b;s.connect(ctx.destination);s.start()}catch(e){}}
@@ -132,7 +137,7 @@ function show(){
 // ---- playback
 function urlFor(it){return it.kind==="stop"?URL_STOP(it.k):it.kind==="head"?URL_HEAD(it.k):it.kind==="home"?URL_HOME(it.k):URL_TURN}
 function enqueue(it){if(playing)queue.push(it);else playItem(it)}
-async function playItem(it){ensureCtx();lock();
+async function playItem(it){ensureCtx();lock();setTimeout(()=>{if(playing&&!soundOK())$("unlock").style.display="block"},1200);
  if(it.kind==="stop"){mode="to";i=it.k;show();document.querySelector(".stop.on")?.scrollIntoView({block:"center",behavior:"smooth"});toast("")}
  else if(it.kind==="home"){mode="home";hi=it.k;homeFired.add(it.k);show();document.querySelector(".stop.on")?.scrollIntoView({block:"center",behavior:"smooth"});toast("")}
  else if(it.kind==="head")toast("🔔 "+HEADTXT[it.k]);else toast("⏰ "+TURNTXT);
@@ -150,7 +155,9 @@ function play(){ensureCtx();if(playing){stopAll();return}playItem(mode==="to"?{k
 function step(d){stopAll();if(mode==="to")i=Math.max(0,Math.min(S.length-1,i+d));else hi=Math.max(0,Math.min(HOME.length-1,hi+d));show();document.querySelector(".stop.on")?.scrollIntoView({block:"center",behavior:"smooth"})}
 function toggleMode(){ensureCtx();stopAll();if(mode==="to"){mode="home";hi=0;show();playItem({kind:"home",k:0})}else{mode="to";show()}}
 // ---- GPS
-function onPos(p){const{latitude:la,longitude:lo}=p.coords;
+function onPos(p){const{latitude:la,longitude:lo,accuracy:acc}=p.coords;if(ctx&&ctx.state!=="running")ctx.resume();
+ if(acc>250){$("gps").textContent=`📍 Weak GPS signal (±${Math.round(acc)} m), waiting…`;return}
+ setTimeout(save,0);
  if(mode==="to"){
   for(let k=i+1;k<C.length;k++){if(C[k]&&!fired.has(k)&&!queue.some(q=>q.kind==="stop"&&q.k===k)&&dist(la,lo,C[k][0],C[k][1])<C[k][2]){
     fired.add(k);if(playing&&cur&&queue.length===0&&$("toast").style.display==="block")stopAll();enqueue({kind:"stop",k});
@@ -166,22 +173,25 @@ function onPos(p){const{latitude:la,longitude:lo}=p.coords;
   const lastH=Math.max(0,...homeFired);const nx=HOME.findIndex((h,k)=>k>lastH&&h.c&&!homeFired.has(k));
   if(nx>0){const d=dist(la,lo,HOME[nx].c[0],HOME[nx].c[1]);$("gps").textContent=`📍 GPS on · next story in ${(d/1609).toFixed(1)} mi`}
   else $("gps").textContent="📍 GPS on · all drive-home stories played";}}
-function toggleGPS(){if(gpsOn){navigator.geolocation.clearWatch(watch);gpsOn=false;$("gpsb").textContent="📍 Turn on GPS auto-play";$("gps").textContent="";return}
+function toggleGPS(){if(gpsOn){navigator.geolocation.clearWatch(watch);gpsOn=false;pendingResume=false;save();$("gpsb").textContent="📍 Turn on GPS auto-play";$("gps").textContent="";return}
  if(!navigator.geolocation){$("gps").textContent="GPS isn't available here. Tap play at each mile marker.";return}
  ensureCtx();lock();
  watch=navigator.geolocation.watchPosition(onPos,e=>{if(e.code===1){$("gps").textContent="Location is blocked. Open this page in Safari and allow location, or tap play at each mile marker.";navigator.geolocation.clearWatch(watch);gpsOn=false;$("gpsb").textContent="📍 Turn on GPS auto-play"}else $("gps").textContent="📍 Searching for GPS signal…"},{enableHighAccuracy:true,maximumAge:5000});
- gpsOn=true;$("gpsb").textContent="📍 GPS auto-play: ON (tap to stop)";$("gps").textContent="Waiting for GPS…"}
+ gpsOn=true;pendingResume=false;save();$("resume").style.display="none";$("gpsb").textContent="📍 GPS auto-play: ON (tap to stop)";$("gps").textContent="Waiting for GPS…"}
 // ---- offline
 async function saveOffline(){const n=document.querySelector(".note");if(!("caches"in window))return;
  const urls=[...S.map((_,k)=>URL_STOP(k)),...[...HEADS].map(URL_HEAD),...HOME.map((_,j)=>URL_HOME(j)),URL_TURN];let c;try{c=await caches.open(CACHE)}catch(e){return}
  let ok=0;for(const [j,u] of urls.entries()){n.textContent=`⏳ Saving audio for offline use… ${j+1}/${urls.length} (keep this page open)`;
   try{if(!(await c.match(u)))await c.add(u);ok++}catch(e){}}
  try{for(const k of await caches.keys())if(k.startsWith("hana-audio")&&k!==CACHE)await caches.delete(k)}catch(e){}
- if(ok===urls.length){n.textContent="✅ Saved for offline use. All narration works with no signal. Keep this tab open in Safari.";n.style.background="#163a2c";n.style.color="#bfeedd"}
+ if(ok===urls.length){n.textContent=`✅ Offline ready: all ${urls.length} audio clips saved on this phone. GPS and narration work with no signal. Keep this tab open in Safari.`;n.style.background="#163a2c";n.style.color="#bfeedd"}
  else n.textContent=`⚠️ Only ${ok}/${urls.length} audio files saved. Reload this page while you have signal.`}
+$("resumeb").onclick=()=>{$("resume").style.display="none";ensureCtx();if(!gpsOn)toggleGPS()};
+$("unlock").onclick=()=>{ensureCtx();ctx.resume().then(()=>{$("unlock").style.display="none"})};
+document.addEventListener("touchend",()=>{if(ctx&&ctx.state!=="running")ctx.resume().then(()=>{$("unlock").style.display="none"})},{passive:true});
 $("gpsb").onclick=toggleGPS;$("modeb").onclick=toggleMode;$("play").onclick=play;$("next").onclick=()=>step(1);$("prev").onclick=()=>step(-1);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden){wl=null;lock();if(ctx)ctx.resume()}});
-try{const s=JSON.parse(localStorage.getItem("hana-state")||"{}");if(s.mode==="home"||s.mode==="to")mode=s.mode;if(s.i>=0&&s.i<S.length)i=s.i;if(s.hi>=0&&s.hi<HOME.length)hi=s.hi;turnDone=!!s.turnDone}catch(e){}
+try{const s=JSON.parse(localStorage.getItem("hana-state")||"{}");if(s.mode==="home"||s.mode==="to")mode=s.mode;if(s.i>=0&&s.i<S.length)i=s.i;if(s.hi>=0&&s.hi<HOME.length)hi=s.hi;turnDone=!!s.turnDone;(s.fired||[]).forEach(x=>fired.add(x));(s.headsFired||[]).forEach(x=>headsFired.add(x));(s.homeFired||[]).forEach(x=>homeFired.add(x));if(s.gpsOn){pendingResume=true;$("resume").style.display="flex"}}catch(e){}
 show();
 if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").then(()=>navigator.serviceWorker.ready).then(saveOffline).catch(saveOffline);else saveOffline();
 </script>
