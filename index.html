@@ -40,7 +40,7 @@ summary{font-weight:600}
 <div class="sub">A free, narrated drive from Pāʻia to Kīpahulu. Your passenger taps play as you pass each mile marker.</div>
 </header>
 
-<div class="note">Open this page while you still have signal. It saves itself (about 15 MB) so the narration, music and GPS work in dead zones.</div>
+<div class="note">Open this page while you still have signal. It saves itself (about 7 MB) so the narration and GPS work in dead zones.</div>
 
 <div class="player">
  <div class="now">
@@ -53,8 +53,7 @@ summary{font-weight:600}
    <button class="play" id="play">▶︎ Play</button>
    <button id="next">▶︎▶︎</button>
   </div>
-  <div class="opts"><button id="mus" class="sm">🎵 Music: On</button><label>Music volume <input type="range" id="mvol" min="0" max="1" step="0.05" value="0.5"></label></div>
-  <button id="gpsb" style="width:100%;margin-top:10px;background:#1f5a4c">📍 Turn on GPS auto-play</button>
+    <button id="gpsb" style="width:100%;margin-top:10px;background:#1f5a4c">📍 Turn on GPS auto-play</button>
   <div class="tip" id="gps"></div>
  </div>
 </div>
@@ -108,7 +107,7 @@ function toggleGPS(){if(gpsOn){navigator.geolocation.clearWatch(watch);gpsOn=fal
  ensureCtx();startMusic();lock();
  watch=navigator.geolocation.watchPosition(onPos,e=>{$("gps").textContent="GPS blocked here. Open the GPS link in Safari, or tap play at each mile marker.";gpsOn=false;$("gpsb").textContent="📍 Turn on GPS auto-play"},{enableHighAccuracy:true,maximumAge:5000});
  gpsOn=true;$("gpsb").textContent="📍 GPS auto-play: ON (tap to stop)";$("gps").textContent="Waiting for GPS…"}
-let i=0,playing=false,wl=null,ctx=null,mGain,vGain,musicSrc=null,cur=null,musicOn=true,MV=0.5;
+let i=0,playing=false,wl=null,ctx=null,mGain,vGain,musicSrc=null,cur=null,musicOn=false,MV=0.5;
 const $=id=>document.getElementById(id);
 const AUD=k=>`audio/${String(k).padStart(2,"0")}.mp3`,MUSIC="audio/music.mp3",CACHE="hana-audio-v1";
 const duck=()=>MV*0.28;
@@ -137,14 +136,12 @@ async function play(){ensureCtx();lock();startMusic();if(playing){stop();return}
  try{const b=await getBuf(AUD(k));if(!playing||k!==i)return;const s=ctx.createBufferSource();s.buffer=b;s.connect(vGain);
   s.onended=()=>{if(cur===s)done()};cur=s;s.start(ctx.currentTime+0.7)}catch(e){if(playing&&k===i)ttsFallback()}}
 async function saveOffline(){const n=document.querySelector(".note");if(!("caches"in window))return;
- const urls=[MUSIC,...S.map((_,k)=>AUD(k))];let c;try{c=await caches.open(CACHE)}catch(e){return}
+ const urls=[...S.map((_,k)=>AUD(k))];let c;try{c=await caches.open(CACHE)}catch(e){return}
  let ok=0;for(const [j,u] of urls.entries()){n.textContent=`⏳ Saving audio for offline use… ${j+1}/${urls.length} (keep this page open)`;
   try{if(!(await c.match(u)))await c.add(u);ok++}catch(e){}}
- if(ok===urls.length){n.textContent="✅ Saved for offline use. Voice, music and the page all work with no signal. Keep this tab open in Safari.";n.style.background="#163a2c";n.style.color="#bfeedd"}
+ if(ok===urls.length){n.textContent="✅ Saved for offline use. The voice and the page all work with no signal. Keep this tab open in Safari.";n.style.background="#163a2c";n.style.color="#bfeedd"}
  else n.textContent=`⚠️ Only ${ok}/${urls.length} audio files saved. Reload this page while you have signal.`}
-$("gpsb").onclick=toggleGPS;$("mus").onclick=toggleMusic;
-$("mvol").oninput=e=>{MV=+e.target.value;if(ctx&&musicOn)ramp(mGain,playing?duck():MV,0.2)};
-document.addEventListener("visibilitychange",()=>{if(!document.hidden){wl=null;lock();if(ctx)ctx.resume()}});
+$("gpsb").onclick=toggleGPS;document.addEventListener("visibilitychange",()=>{if(!document.hidden){wl=null;lock();if(ctx)ctx.resume()}});
 $("play").onclick=play;$("next").onclick=()=>go(i+1);$("prev").onclick=()=>go(i-1);
 try{const s=+localStorage.getItem("hana-i");if(s>0&&s<S.length)i=s}catch(e){}
 show();
